@@ -3,6 +3,7 @@
 #include<fstream>
 #include <sstream>
 #include<vector>
+#include<stack>
 #include<cstring>
 #include<map>
 using namespace std;
@@ -23,7 +24,7 @@ int main(int argc, char **argv) {
   int OR_CONSTRAINT=stoi(argv[4]);
   int NOT_CONSTRAINT=stoi(argv[5]);
   
-  //read optin
+  //read optin start
   //-h list scheduling
   //-e list scheduling+ILP
   char option;
@@ -36,26 +37,26 @@ int main(int argc, char **argv) {
         break;
       
       default:
-        cout<<"No such option\n";
+        std::cout<<"No such option\n";
         return 0;
         break;
 
     }
   }
-  cout<<"option:"<<option<<endl;
-
+  std::cout<<"option:"<<option<<endl;
+  //read optin end
 
   //read file
   ifstream inputFile(blifFile);
   if (!inputFile.is_open()) {
-    cout << "Failed to open BLIF file." << endl;
+    std::cout << "Failed to open BLIF file." << endl;
     return 0;
   }
 
   string line;
   vector<string> tokens;
-  map<string,int> input;
-  map<string,opera> opera_output;
+  map<string,int> input; //store input node
+  map<string,opera> opera_output; //store output & operator node
   int intput_id=0,opera_id=0;
   string last_one;//紀錄該operator是AND?OR?NOT?
 
@@ -101,19 +102,59 @@ int main(int argc, char **argv) {
         }
     }
   }
+  
+  //read again to form graph matrix
+  size_t n=input.size()+opera_output.size();
+  vector<vector<bool>> graph_matrix(n,vector<bool>(n,0));
+   
+  inputFile.clear();
+  inputFile.seekg(0, ios::beg);
+  while (getline(inputFile, line)) {
+    stack<string> s;
+    string token;
+    istringstream iss(line);
+
+    if (line.find(".names") == 0 ) {
+      // 跳過 .names 自身，並儲存後面的字母
+      while (iss >> token) {
+          if (token != ".names")
+            s.push(token);
+          
+      }
+      string j=s.top();
+      s.pop();
+      while(!s.empty()){
+        if(input.find(s.top())==input.end()){ //not input node
+          graph_matrix[opera_output[s.top()].id][opera_output[j].id]=1;
+        }
+          
+        s.pop();
+      }
+    }
+
+  }
+  
   inputFile.close();
+  
+ 
 
-
-  cout << "inputa Results:" << endl;
+  std::cout << "inputa Results:" << endl;
   for (const auto& pair : input) {
-      cout << pair.first << ": " << pair.second << endl;
+      std::cout << pair.first << ": " << pair.second << endl;
   }
 
-  cout << "opera Results:" << endl;
+  std::cout << "opera Results:" << endl;
   for (const auto& pair : opera_output) {
-      cout << pair.first << ": " << pair.second.id<<" , "<<pair.second.type<< endl;
+      std::cout << pair.first << ": " << pair.second.id<<" , "<<pair.second.type<< endl;
   }
 
+  std::cout << "Graph matrix:" << endl;
+  for (const auto& row : graph_matrix) {
+        for (bool val : row) {
+            cout << val << " ";
+        }
+        cout << endl;
+  }
 
   return 0;
 }
