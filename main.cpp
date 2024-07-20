@@ -7,6 +7,8 @@
 #include<queue>
 #include<cstring>
 #include<map>
+#include "glpk.h"
+
 using namespace std;
 #define AND 0
 #define OR 1
@@ -20,10 +22,100 @@ struct opera{
   //1 OR
   //2 NOT
 };
-bool read_file(string blifFile,vector<vector<bool>> &graph_matrix,map<string,opera> &opera_output);
+bool read_file(string blifFile,vector<vector<bool>> &graph_matrix,map<string,opera> &opera_output,vector<int> &NOP_out);
+
+bool check_slack_time(vector<int> arrival_time){
+  for(const auto& i:arrival_time){
+    if(i==-1)
+      return false;
+  }
+  return true;
+}
 
 
+void arrival_time_calculate(vector<vector<bool>> graph_matrix,vector<int> &arrival_time){
+  //arrival time
+  //transepose graph matrix
+  size_t n=arrival_time.size();
+  vector<vector<int>> transpose(n,vector<int>(n,0));
+  for(int i=0;i<n;i++){
+    for(int j=0;j<n;j++){
+      transpose[j][i]=graph_matrix[i][j];
+    }
+  }
+  
+  //initial node of arrival time
+  for(auto i=0;i<transpose.size();i++){
+    for(auto j=0;j<transpose[i].size();j++){
+      arrival_time[i]=1;
+      if(transpose[i][j]==1){
+        arrival_time[i]=-1;
+        break;
+      }
+    }
+  }
+  //do until all node have arrival time
+  while(!check_slack_time(arrival_time)){ 
+    for(int i=0;i<n;i++){
+      bool process=true;
+      if(arrival_time[i]==-1){
+        for(int j=0;j<n;j++){
+          if(arrival_time[j]==-1 && transpose[i][j]==1){
+            process=false;
+            break;
+          }
+        }
+        if(process){
+        int max=0;
+        for(int j=0;j<n;j++){
+          if(transpose[i][j]==1 && arrival_time[j]>max)
+            max=arrival_time[j]; 
+        }
+        arrival_time[i]=max+1; //delay 1 cycle
+        }
+      }
+    }
+  }
+  return;
+}
 
+
+void required_time_calculate(vector<vector<bool>> graph_matrix,vector<int> &required_time,vector<int> NOP_out, int t){
+  size_t n= required_time.size();
+  //initial required time
+  for(int i=0;i<NOP_out.size();i++){
+    required_time[NOP_out[i]]=t;
+  }
+
+  while(!check_slack_time(required_time)){ 
+    for(int i=0;i<n;i++){
+      bool process=true;
+      if(required_time[i]==-1){
+        for(int j=0;j<n;j++){
+          if(required_time[j]==-1 && graph_matrix[i][j]==1){
+            process=false;
+            break;
+          }
+        }
+
+        if(process){
+        int min=INT32_MAX;
+        for(int j=0;j<n;j++){
+          if(graph_matrix[i][j]==1){
+            if(required_time[j]<min)
+              min=required_time[j];
+          }
+        }
+        required_time[i]=min-1; //delay 1 cycle
+        }
+      }
+    }
+  }
+  return;
+}
+
+//compile:  g++ main.cpp -o main -lglpk
+//run code: ./main -h 6io2.blif 2 1 1
 int main(int argc, char **argv) {
   //input format
   //mlrcs -h/-e BLIF_FILE AND_CONSTRAINT OR_CONSTRAINT NOT_CONSTRAINT 
@@ -65,11 +157,11 @@ int main(int argc, char **argv) {
 
   vector<vector<bool>> graph_matrix;
   map<string,opera> opera_output;
-  if(!read_file(blifFile,graph_matrix,opera_output))
+  vector<int> NOP_out;
+  if(!read_file(blifFile,graph_matrix,opera_output,NOP_out))
     return 0;
   size_t n=opera_output.size(); //matrix size
 
- 
 
   std::cout << "opera Results:" << endl;
   for (const auto& pair : opera_output) {
@@ -88,9 +180,11 @@ int main(int argc, char **argv) {
   vector<int> ref(n,0); //check node is ready or not
   vector<queue<int>> ready(3);
   vector<string> id2node(n,"");
-   for (const auto& entry : opera_output) 
-      id2node[entry.second.id]=entry.first;
+  for (const auto& entry : opera_output) 
+    id2node[entry.second.id]=entry.first;
     
+
+  //calculate number of predecessor
   for(int i=0;i<n;i++){
     for(int j=0;j<n;j++){
       if(graph_matrix[i][j]==1){
@@ -104,7 +198,6 @@ int main(int argc, char **argv) {
   }
 
   std::queue<int> temp = ready[0];
-
   for(int i=0;i<3;i++){
     if(i==0)
       cout<<"AND:"<<endl;
@@ -120,10 +213,8 @@ int main(int argc, char **argv) {
     temp = ready[i];
   }
 
-  //list scheduling
-  vector<int> time(n,0);
+  //list scheduling start
   vector<vector<vector<string>>> OUT;//[time][type][node]
-
   int t=0;
   while(!ready[0].empty()||!ready[1].empty()||!ready[2].empty()){
     vector<vector<string>> type_node(3);
@@ -161,15 +252,58 @@ int main(int argc, char **argv) {
     }
     cout<<endl;
   }
-  cout<<"spend time: "<<t<<endl;
+  //list scheduling end
+  cout<<"spend time: "<<t<<" cycles"<<endl;
   
+  //arrival time
+  vector<int> arrival_time(n,-1);
+  arrival_time_calculate(graph_matrix,arrival_time);
+
+
+  //require time
+  vector<int> required_time(n,-1);
+  required_time_calculate(graph_matrix,required_time,NOP_out,t);
+
+
+
+
+  cout<<"arrival time: ";
+  for(const auto& i:id2node){
+    cout<<i<<" ";
+  }
+  cout<<endl;
+  cout<<"arrival time: ";
+  for(const auto& i:arrival_time){
+    cout<<i<<" ";
+  }
+  cout<<endl;
+  cout<<"required time: ";
+  for(const auto& i:required_time){
+    cout<<i<<" ";
+  }
+  cout<<endl;
+  cout<<"slack time: ";
+  for(int i=0;i<n;i++){
+    cout<<required_time[i]-arrival_time[i]<<" ";
+  }
+cout<<endl;
+
+  //ILP format
+  // 創建問題
+    // glp_prob *lp;
+    // lp = glp_create_prob();
+    // glp_set_prob_name(lp, "sample");
+    // glp_set_obj_dir(lp, GLP_MIN); // 設置為求最大化問題
+
+
+
   return 0;
 }
 
 
 
 
-bool read_file(string blifFile,vector<vector<bool>> &graph_matrix,map<string,opera> &opera_output){
+bool read_file(string blifFile,vector<vector<bool>> &graph_matrix,map<string,opera> &opera_output,vector<int> &NOP_out) {
   ifstream inputFile(blifFile);
   if (!inputFile.is_open()) {
     std::cout << "Failed to open BLIF file." << endl;
@@ -178,6 +312,7 @@ bool read_file(string blifFile,vector<vector<bool>> &graph_matrix,map<string,ope
 
   string line;
   vector<string> tokens;
+  vector<string> NOP_out_temp;
   map<string,int> input; //store input node
   //map<string,opera> opera_output; //store output & operator node
   int intput_id=0,opera_id=0;
@@ -207,7 +342,16 @@ bool read_file(string blifFile,vector<vector<bool>> &graph_matrix,map<string,ope
                   opera_output[token].id=opera_id++;
             }
         }
-    } else {//判別型態AND?OR?NOT?
+    }
+    else if (line.find(".outputs") == 0 ) {
+        // 跳過 .outputs 自身，並儲存後面的字母
+        while (iss >> token) {
+            if (token != ".outputs" ){
+                  NOP_out_temp.push_back(token);
+            }
+        }
+    }
+    else {//判別型態AND?OR?NOT?
         while (iss >> token) {
           if(opera_output.find(last_one)!=opera_output.end()){//need to found operator
             if(token.size()==1){                    //NOT
@@ -225,7 +369,11 @@ bool read_file(string blifFile,vector<vector<bool>> &graph_matrix,map<string,ope
         }
     }
   }
-  
+  //輸入NOP_out_temp到NOP_out
+  for(const auto &i:NOP_out_temp){
+    NOP_out.push_back(opera_output[i].id);
+  }
+
   //read again to form graph matrix
   size_t n=opera_output.size();
   graph_matrix.resize(n,vector<bool>(n,0));
