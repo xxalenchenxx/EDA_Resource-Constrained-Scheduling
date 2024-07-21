@@ -26,7 +26,10 @@ int main() {
     //constraint 1
     glp_add_rows(lp, 3);
     glp_set_row_name(lp, 1, "c1");
-    glp_set_row_bnds(lp, 1, GLP_UP, 0.0, 100.0); // c1: x1 + x2 + x3 <= 100
+    glp_set_row_bnds(lp, 1, GLP_FX, 100.0, 100.0); // c1: x1 + x2 + x3 <= 100
+    // c1: x1 + x2 + x3 = 1
+    // c1: x1 + x2 + x3 = 1
+
     //constraint 2
     glp_set_row_name(lp, 2, "c2");
     glp_set_row_bnds(lp, 2, GLP_UP, 0.0, 600.0); // c2: 10*x1 + 4*x2 + 5*x3 <= 600
@@ -38,7 +41,7 @@ int main() {
     //constraint 4
     glp_add_rows(lp, 1);
     glp_set_row_name(lp, 4, "c4");
-    glp_set_row_bnds(lp, 4, GLP_UP, 0.0, 20.0); // c4: x1 + x3 <= 2
+    glp_set_row_bnds(lp, 4, GLP_UP, 0.0, 20.0); // c4: x1 + x3 <= 20
 
     // 填充矩陣
     int ia[1+11], ja[1+11];

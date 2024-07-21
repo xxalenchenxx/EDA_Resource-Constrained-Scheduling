@@ -288,12 +288,48 @@ int main(int argc, char **argv) {
   }
 cout<<endl;
 
-  //ILP format
-  // 創建問題
-    // glp_prob *lp;
-    // lp = glp_create_prob();
-    // glp_set_prob_name(lp, "sample");
-    // glp_set_obj_dir(lp, GLP_MIN); // 設置為求最大化問題
+//幫助ILP的offset constraint
+vector<int> offset_constraint(n+1,0);
+for(auto i=1;i<offset_constraint.size();i++){
+  offset_constraint[i]=offset_constraint[i-1]+required_time[i-1]-arrival_time[i-1]+1;
+
+}
+
+
+//ILP format
+// 創建問題
+glp_prob *lp;
+lp = glp_create_prob();
+glp_set_prob_name(lp, "sample");
+glp_set_obj_dir(lp, GLP_MIN); // 設置為求最小化問題
+
+//初始參數opera1 2 3...範圍
+for(auto i=0;i<id2node.size();i++){
+  glp_add_cols(lp, 1);
+  for(auto range=arrival_time[i];range<=required_time[i];range++){
+    glp_set_col_name(lp, i*range+range, (id2node[i]+"_"+to_string(range)).c_str() );
+    glp_set_col_bnds(lp, i*range+range, GLP_LO, 0.0, 0.0); // x1 >= 0
+    glp_set_obj_coef(lp, i*range+range, 1.0); // 目標函數中 x1 的係數
+  }
+}
+
+for(auto i=0;i<id2node.size();i++){  //X2,1+X2,2=1 只會有一個開始時間
+  glp_add_rows(lp, 1);
+  glp_set_row_name(lp, i+1, (id2node[i]+"_constraint").c_str());
+  glp_set_row_bnds(lp, 1, GLP_FX, 1.0, 1.0); // c1: x1 + x2 + x3 = 1.0
+}
+
+
+//設定 operator node 的順序限制
+for(int i=0;i<graph_matrix.size();i++){ 
+  for(int j=0;j<graph_matrix[i].size();j++){
+    if(graph_matrix[i][j]==1){
+      glp_add_rows(lp, 1);
+      glp_set_row_name(lp, i+1, (to_string(i)+","+to_string(j)+"_constraint").c_str());
+      glp_set_row_bnds(lp, 1, GLP_LO, 1.0, 0.0); // c1: Constraint >= 1.0
+    }
+  }
+}
 
 
 
