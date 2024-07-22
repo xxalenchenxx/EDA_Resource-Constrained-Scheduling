@@ -295,6 +295,11 @@ for(auto i=1;i<offset_constraint.size();i++){
 
 }
 
+cout<<"offset_constraint: ";
+for(const auto &i:offset_constraint){
+  cout<<i<<" ";
+}
+cout<<endl;
 
 //ILP format
 // 創建問題
@@ -303,20 +308,36 @@ lp = glp_create_prob();
 glp_set_prob_name(lp, "sample");
 glp_set_obj_dir(lp, GLP_MIN); // 設置為求最小化問題
 
+
+// 添加變量
 //初始參數opera1 2 3...範圍
+vector<int> opera_time;
 for(auto i=0;i<id2node.size();i++){
-  glp_add_cols(lp, 1);
-  for(auto range=arrival_time[i];range<=required_time[i];range++){
-    glp_set_col_name(lp, i*range+range, (id2node[i]+"_"+to_string(range)).c_str() );
-    glp_set_col_bnds(lp, i*range+range, GLP_LO, 0.0, 0.0); // x1 >= 0
-    glp_set_obj_coef(lp, i*range+range, 1.0); // 目標函數中 x1 的係數
+  int j=1;
+  for(auto range=arrival_time[i];range<=required_time[i];range++,j++){
+    glp_add_cols(lp, 1);
+    opera_time.push_back(range);
+    glp_set_col_name(lp, offset_constraint[i]+j, (id2node[i]+"_"+to_string(range)).c_str() );
+    glp_set_col_bnds(lp, offset_constraint[i]+j, GLP_LO, 0.0, 0.0); // x1 > 0
+    
+    for(int check=0;check<NOP_out.size();check++){
+      if(NOP_out[check]==i)
+        glp_set_obj_coef(lp, offset_constraint[i]+j, range); // 目標函數中 x1 的係數
+    }
   }
 }
+opera_time.shrink_to_fit();
 
-for(auto i=0;i<id2node.size();i++){  //X2,1+X2,2=1 只會有一個開始時間
+
+
+// 建立constraint
+// X2,1+X2,2=1 只會有一個開始時間
+int offset_constraint_temp=1;
+for(auto i=0;i<id2node.size();i++){  
   glp_add_rows(lp, 1);
-  glp_set_row_name(lp, i+1, (id2node[i]+"_constraint").c_str());
-  glp_set_row_bnds(lp, 1, GLP_FX, 1.0, 1.0); // c1: x1 + x2 + x3 = 1.0
+  glp_set_row_name(lp, offset_constraint_temp, (id2node[i]+"_constraint").c_str());
+  glp_set_row_bnds(lp, offset_constraint_temp, GLP_FX, 1.0, 1.0); // c1: x1 + x2 + x3 = 1.0
+  offset_constraint_temp++;
 }
 
 
@@ -325,14 +346,80 @@ for(int i=0;i<graph_matrix.size();i++){
   for(int j=0;j<graph_matrix[i].size();j++){
     if(graph_matrix[i][j]==1){
       glp_add_rows(lp, 1);
-      glp_set_row_name(lp, i+1, (to_string(i)+","+to_string(j)+"_constraint").c_str());
-      glp_set_row_bnds(lp, 1, GLP_LO, 1.0, 0.0); // c1: Constraint >= 1.0
+      glp_set_row_name(lp, offset_constraint_temp, (to_string(i)+","+to_string(j)+"_constraint").c_str());
+      glp_set_row_bnds(lp, offset_constraint_temp, GLP_LO, 1.0, 0.0); // c1: Constraint >= 1.0
+      offset_constraint_temp++;
     }
   }
 }
 
+//設定每個時間點的constraint數量 限制
+for(auto time=1;time<=t;time++){
+  for(auto type=0;type<3;type++){
+    glp_add_rows(lp, 1);
+    glp_set_row_name(lp, offset_constraint_temp, ("time_"+to_string(time)+"_type_"+to_string(type)+"_constraint").c_str());
+    glp_set_row_bnds(lp, offset_constraint_temp, GLP_UP, 0.0, CONSTRAINT[type]); // c1: <= 1.0
+    offset_constraint_temp++;
+  }
+}
+// 建立constraint
+
+//填充矩陣
+vector<int> ia;
+vector<int> ja;
+vector<double> ar;
+//填入X2,1+X2,2=1 只會有一個開始時間
+int offset_node_temp=1;
+for(int i=0;i<opera_output.size();i++){
+  for(int j=offset_constraint[i];j<offset_constraint[i+1];j++){
+    ia.push_back(offset_node_temp);
+    ja.push_back(j);
+    ar.push_back(1.0);
+    offset_node_temp++;
+  }
+}
 
 
+//填入 operator node 的順序限制參數 i->j 2Xj2+3Xj3-(1Xi+2Xi2)>=1
+for(int i=0;i<graph_matrix.size();i++){ 
+  for(int j=0;j<graph_matrix[i].size();j++){
+    if(graph_matrix[i][j]==1){
+      for(int k=offset_constraint[j];k<offset_constraint[j+1];k++){
+        ia.push_back(offset_node_temp);
+        ja.push_back(k+1);
+        ar.push_back(opera_time[k]);
+      }
+      for(int k=offset_constraint[i];k<offset_constraint[i+1];k++){
+        ia.push_back(offset_node_temp);
+        ja.push_back(k+1);
+        ar.push_back(-1.0*opera_time[k]);
+      }
+      offset_node_temp++;
+    }
+  }
+}
+
+for(int i=0;i<t;i++){  //at time 1.2.3.4...
+  for(int j=0;j<offset_constraint.size();j++){ //at node
+    for(int k=offset_constraint[j];k<offset_constraint[j+1];k++){ //operate in time 1~2 cycles
+      if(opera_time[j]==i){
+        ia.push_back(offset_node_temp+opera_output[id2node[j]].type);
+        ja.push_back(k+1);
+        ar.push_back(1.0);
+      }
+    }
+  }
+  offset_node_temp+=3;
+}
+
+glp_load_matrix(lp, ia.size(), ia.data(), ja.data(), ar.data());
+
+// 求解問題
+glp_simplex(lp, NULL);
+glp_free_env();
+
+std::cout << "Optimal value: " << glp_get_obj_val(lp) << std::endl;
+glp_delete_prob(lp);
   return 0;
 }
 
