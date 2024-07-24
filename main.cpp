@@ -310,38 +310,44 @@ glp_set_obj_dir(lp, GLP_MIN); // 設置為求最小化問題
 
 
 // 添加變量
-//初始參數opera1 2 3...範圍
+//初始參數X1,1 X1,2 ...範圍
 vector<int> opera_time;
 for(auto i=0;i<id2node.size();i++){
-  int j=1;
-  for(auto range=arrival_time[i];range<=required_time[i];range++,j++){
-    glp_add_cols(lp, 1);
+  for(auto range=arrival_time[i];range<=required_time[i];range++)
     opera_time.push_back(range);
-    glp_set_col_name(lp, offset_constraint[i]+j, (id2node[i]+"_"+to_string(range)).c_str() );
-    glp_set_col_bnds(lp, offset_constraint[i]+j, GLP_LO, 0.0, 0.0); // x1 > 0
-    
-    for(int check=0;check<NOP_out.size();check++){
-      if(NOP_out[check]==i)
-        glp_set_obj_coef(lp, offset_constraint[i]+j, range); // 目標函數中 x1 的係數
-    }
-  }
 }
 opera_time.shrink_to_fit();
 
+for(auto i=0;i<id2node.size();i++){
+  int j=1;
+  for(auto range=offset_constraint[i] ;range<offset_constraint[i+1];range++,j++){
+    glp_add_cols(lp, 1);
+    glp_set_col_name(lp, range+1, (id2node[i]+"_"+to_string(range+1)).c_str() );
+    glp_set_col_bnds(lp, range+1, GLP_LO, 0.0, 0.0); // x1,1 > 0
+    for(int check=0;check<NOP_out.size();check++){
+      if(NOP_out[check]==i)
+        glp_set_obj_coef(lp,range+1, opera_time[range]); // 目標函數中 x1 的係數
+    }
+  }
+}
+//print opera
+cout<<"opera time: ";
+for(const auto &i:opera_time){
+  cout<<i<<" ";
+}
+cout<<endl;
 
-
-// 建立constraint
-// X2,1+X2,2=1 只會有一個開始時間
+// 建立constraint C
+// X2,1+X2,2=1 只會有一個開始時間(共有 operate node個)
 int offset_constraint_temp=1;
-for(auto i=0;i<id2node.size();i++){  
+for(auto i=0;i<opera_output.size();i++){   //11
   glp_add_rows(lp, 1);
-  glp_set_row_name(lp, offset_constraint_temp, (id2node[i]+"_constraint").c_str());
+  glp_set_row_name(lp, offset_constraint_temp, i+"_constraint");
   glp_set_row_bnds(lp, offset_constraint_temp, GLP_FX, 1.0, 1.0); // c1: x1 + x2 + x3 = 1.0
   offset_constraint_temp++;
 }
-
-
-//設定 operator node 的順序限制
+cout<<"offset_constraint_temp1: "<<offset_constraint_temp<<endl;
+//設定 operator node 的順序限制 14
 for(int i=0;i<graph_matrix.size();i++){ 
   for(int j=0;j<graph_matrix[i].size();j++){
     if(graph_matrix[i][j]==1){
@@ -352,74 +358,128 @@ for(int i=0;i<graph_matrix.size();i++){
     }
   }
 }
-
+cout<<"offset_constraint_temp2: "<<offset_constraint_temp<<endl;
 //設定每個時間點的constraint數量 限制
-for(auto time=1;time<=t;time++){
-  for(auto type=0;type<3;type++){
-    glp_add_rows(lp, 1);
-    glp_set_row_name(lp, offset_constraint_temp, ("time_"+to_string(time)+"_type_"+to_string(type)+"_constraint").c_str());
-    glp_set_row_bnds(lp, offset_constraint_temp, GLP_UP, 0.0, CONSTRAINT[type]); // c1: <= 1.0
-    offset_constraint_temp++;
+//時間從0開始
+vector<vector<vector<int>>> time_constraint(t,vector<vector<int>>(3,vector<int>(0)));
+for(int j=0;j<(offset_constraint.size()-1);j++){ //at node
+  for(int k=offset_constraint[j];k<offset_constraint[j+1];k++){ //operate in time 1~2 cycles
+    time_constraint[(opera_time[k]-1)][opera_output[id2node[j]].type].push_back((k+1)); //推進該變量
   }
 }
-// 建立constraint
 
+for(int time=0;time<time_constraint.size();time++){ //11
+  for(int type=0;type<time_constraint[time].size();type++){
+    if(time_constraint[time][type].size()){
+      glp_add_rows(lp, 1);
+      glp_set_row_name(lp, offset_constraint_temp, (to_string(time)+","+to_string(type)+"_constraint").c_str());
+      glp_set_row_bnds(lp, offset_constraint_temp, GLP_UP, 0.0, CONSTRAINT[type]); // c1: Constraint <= 1.0
+      offset_constraint_temp++;
+    }
+  }
+}
+
+// for(int time=0;time<time_constraint.size();time++){
+//     cout<<"time "<<time<<": ";
+//     for(int type=0;type<time_constraint[time].size();type++){
+//       cout<<"{ ";
+//       for(int node=0;node<time_constraint[time][type].size();node++){
+//         cout<<time_constraint[time][type][node]<<"-";
+//       }
+//       cout<<" }";
+//     }
+//     cout<<endl;
+// }
+
+cout<<"offset_constraint_temp3: "<<offset_constraint_temp<<endl;
+// 建立constraint
 //填充矩陣
-vector<int> ia;
-vector<int> ja;
-vector<double> ar;
-//填入X2,1+X2,2=1 只會有一個開始時間
-int offset_node_temp=1;
-for(int i=0;i<opera_output.size();i++){
+vector<int> ia(1,0);
+vector<int> ja(1,0);
+vector<double> ar(1,0);
+//填入X(2,1)+X(2,2)=1 只會有一個開始時間
+int offset_node_temp=1;   //每個constraint代號，設一個就要+1
+int constraint_offset=1; //在下第幾個constraint
+
+std::cout << "ia array before: \n";
+for (int i = 0; i < ia.size(); i++) {
+  std::cout << ia[i] << "\n";
+}
+std::cout << std::endl;
+
+
+for(int i=0;i<(offset_constraint.size()-1);i++){
   for(int j=offset_constraint[i];j<offset_constraint[i+1];j++){
-    ia.push_back(offset_node_temp);
-    ja.push_back(j);
+    ia.push_back(constraint_offset);
+    ja.push_back(j+1); //constraint從1開始，所以要+1
     ar.push_back(1.0);
+    // ia[offset_node_temp]=constraint_offset;
+    // ja[offset_node_temp]=(j+1); //constraint從1開始，所以要+1
+    // ar[offset_node_temp]=1.0;
     offset_node_temp++;
   }
+  constraint_offset++;
 }
-
-
+cout<<"constraint_offset1: "<<constraint_offset<<endl;
 //填入 operator node 的順序限制參數 i->j 2Xj2+3Xj3-(1Xi+2Xi2)>=1
 for(int i=0;i<graph_matrix.size();i++){ 
   for(int j=0;j<graph_matrix[i].size();j++){
-    if(graph_matrix[i][j]==1){
+    if(graph_matrix[i][j]==true){
       for(int k=offset_constraint[j];k<offset_constraint[j+1];k++){
-        ia.push_back(offset_node_temp);
+        ia.push_back(constraint_offset);
         ja.push_back(k+1);
         ar.push_back(opera_time[k]);
-      }
-      for(int k=offset_constraint[i];k<offset_constraint[i+1];k++){
-        ia.push_back(offset_node_temp);
-        ja.push_back(k+1);
-        ar.push_back(-1.0*opera_time[k]);
+        // ia[offset_node_temp]=constraint_offset;
+        // ja[offset_node_temp]=(k+1);
+        // ar[offset_node_temp]=(opera_time[k]);
       }
       offset_node_temp++;
-    }
-  }
-}
-
-for(int i=0;i<t;i++){  //at time 1.2.3.4...
-  for(int j=0;j<offset_constraint.size();j++){ //at node
-    for(int k=offset_constraint[j];k<offset_constraint[j+1];k++){ //operate in time 1~2 cycles
-      if(opera_time[j]==i){
-        ia.push_back(offset_node_temp+opera_output[id2node[j]].type);
+      for(int k=offset_constraint[i];k<offset_constraint[i+1];k++){
+        ia.push_back(constraint_offset);
         ja.push_back(k+1);
-        ar.push_back(1.0);
+        ar.push_back(-1.0*opera_time[k]);
+        // ia[offset_node_temp]=constraint_offset;
+        // ja[offset_node_temp]=(k+1);
+        // ar[offset_node_temp]=(-1.0*opera_time[k]);
       }
+      offset_node_temp++;
+      constraint_offset++;
     }
   }
-  offset_node_temp+=3;
 }
+cout<<"constraint_offset2: "<<constraint_offset<<endl;
+for(int time=0;time<time_constraint.size();time++){
+  for(int type=0;type<time_constraint[time].size();type++){
+    bool do_for=false;
+    for(int node=0;node<time_constraint[time][type].size();node++){
+      do_for=true;
+      ia.push_back(constraint_offset);
+      ja.push_back(time_constraint[time][type][node]);
+      ar.push_back(1.0);
+      // ia[offset_node_temp]=constraint_offset;
+      // ja[offset_node_temp]=time_constraint[time][type][node];
+      // ar[offset_node_temp]=1.0;
+      offset_node_temp++;
+    }
+    if(do_for)
+      constraint_offset++;
+  }
+}
+cout<<"constraint_offset3: "<<constraint_offset<<endl;
 
-glp_load_matrix(lp, ia.size(), ia.data(), ja.data(), ar.data());
+// std::cout << "ia array: \n";
+// for (int i = 1; i < ia.size(); i++) {
+//   std::cout << ia[i] << "\n";
+// }
+// std::cout << std::endl;
 
+glp_load_matrix(lp, (ia.size()-1), ia.data(), ja.data(), ar.data());
 // 求解問題
 glp_simplex(lp, NULL);
 glp_free_env();
 
 std::cout << "Optimal value: " << glp_get_obj_val(lp) << std::endl;
-glp_delete_prob(lp);
+// glp_delete_prob(lp);
   return 0;
 }
 

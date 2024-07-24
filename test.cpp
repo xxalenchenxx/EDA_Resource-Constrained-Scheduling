@@ -26,7 +26,7 @@ int main() {
     //constraint 1
     glp_add_rows(lp, 3);
     glp_set_row_name(lp, 1, "c1");
-    glp_set_row_bnds(lp, 1, GLP_FX, 100.0, 100.0); // c1: x1 + x2 + x3 <= 100
+    glp_set_row_bnds(lp, 1, GLP_FX, 100.0, 100.0); // c1: x1 + x2 + x3 = 100
     // c1: x1 + x2 + x3 = 1
     // c1: x1 + x2 + x3 = 1
 
@@ -74,7 +74,7 @@ int main() {
     std::cout << "x1 = " << glp_get_col_prim(lp, 1) << std::endl;
     std::cout << "x2 = " << glp_get_col_prim(lp, 2) << std::endl;
     std::cout << "x3 = " << glp_get_col_prim(lp, 3) << std::endl;
-
+    
     // 釋放資源
     glp_delete_prob(lp);
     glp_free_env();
