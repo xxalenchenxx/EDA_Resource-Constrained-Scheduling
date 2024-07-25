@@ -253,7 +253,7 @@ int main(int argc, char **argv) {
     cout<<endl;
   }
   //list scheduling end
-  cout<<"spend time: "<<t<<" cycles"<<endl;
+  // cout<<"spend time: "<<t<<" cycles"<<endl;
   
   //arrival time
   vector<int> arrival_time(n,-1);
@@ -267,26 +267,26 @@ int main(int argc, char **argv) {
 
 
 
-  cout<<"arrival time: ";
-  for(const auto& i:id2node){
-    cout<<i<<" ";
-  }
-  cout<<endl;
-  cout<<"arrival time: ";
-  for(const auto& i:arrival_time){
-    cout<<i<<" ";
-  }
-  cout<<endl;
-  cout<<"required time: ";
-  for(const auto& i:required_time){
-    cout<<i<<" ";
-  }
-  cout<<endl;
-  cout<<"slack time: ";
-  for(int i=0;i<n;i++){
-    cout<<required_time[i]-arrival_time[i]<<" ";
-  }
-cout<<endl;
+//   cout<<"arrival time: ";
+//   for(const auto& i:id2node){
+//     cout<<i<<" ";
+//   }
+//   cout<<endl;
+//   cout<<"arrival time: ";
+//   for(const auto& i:arrival_time){
+//     cout<<i<<" ";
+//   }
+//   cout<<endl;
+//   cout<<"required time: ";
+//   for(const auto& i:required_time){
+//     cout<<i<<" ";
+//   }
+//   cout<<endl;
+//   cout<<"slack time: ";
+//   for(int i=0;i<n;i++){
+//     cout<<required_time[i]-arrival_time[i]<<" ";
+//   }
+// cout<<endl;
 
 //幫助ILP的offset constraint
 vector<int> offset_constraint(n+1,0);
@@ -295,11 +295,11 @@ for(auto i=1;i<offset_constraint.size();i++){
 
 }
 
-cout<<"offset_constraint: ";
-for(const auto &i:offset_constraint){
-  cout<<i<<" ";
-}
-cout<<endl;
+// cout<<"offset_constraint: ";
+// for(const auto &i:offset_constraint){
+//   cout<<i<<" ";
+// }
+// cout<<endl;
 
 //ILP format
 // 創建問題
@@ -331,11 +331,11 @@ for(auto i=0;i<id2node.size();i++){
   }
 }
 //print opera
-cout<<"opera time: ";
-for(const auto &i:opera_time){
-  cout<<i<<" ";
-}
-cout<<endl;
+// cout<<"opera time: ";
+// for(const auto &i:opera_time){
+//   cout<<i<<" ";
+// }
+// cout<<endl;
 
 // 建立constraint C
 // X2,1+X2,2=1 只會有一個開始時間(共有 operate node個)
@@ -346,7 +346,7 @@ for(auto i=0;i<opera_output.size();i++){   //11
   glp_set_row_bnds(lp, offset_constraint_temp, GLP_FX, 1.0, 1.0); // c1: x1 + x2 + x3 = 1.0
   offset_constraint_temp++;
 }
-cout<<"offset_constraint_temp1: "<<offset_constraint_temp<<endl;
+
 //設定 operator node 的順序限制 14
 for(int i=0;i<graph_matrix.size();i++){ 
   for(int j=0;j<graph_matrix[i].size();j++){
@@ -358,7 +358,7 @@ for(int i=0;i<graph_matrix.size();i++){
     }
   }
 }
-cout<<"offset_constraint_temp2: "<<offset_constraint_temp<<endl;
+
 //設定每個時間點的constraint數量 限制
 //時間從0開始
 vector<vector<vector<int>>> time_constraint(t,vector<vector<int>>(3,vector<int>(0)));
@@ -379,35 +379,16 @@ for(int time=0;time<time_constraint.size();time++){ //11
   }
 }
 
-// for(int time=0;time<time_constraint.size();time++){
-//     cout<<"time "<<time<<": ";
-//     for(int type=0;type<time_constraint[time].size();type++){
-//       cout<<"{ ";
-//       for(int node=0;node<time_constraint[time][type].size();node++){
-//         cout<<time_constraint[time][type][node]<<"-";
-//       }
-//       cout<<" }";
-//     }
-//     cout<<endl;
-// }
 
-cout<<"offset_constraint_temp3: "<<offset_constraint_temp<<endl;
 // 建立constraint
 //填充矩陣
 vector<int> ia(1,0);
 vector<int> ja(1,0);
 vector<double> ar(1,0);
-//填入X(2,1)+X(2,2)=1 只會有一個開始時間
 int offset_node_temp=1;   //每個constraint代號，設一個就要+1
 int constraint_offset=1; //在下第幾個constraint
 
-std::cout << "ia array before: \n";
-for (int i = 0; i < ia.size(); i++) {
-  std::cout << ia[i] << "\n";
-}
-std::cout << std::endl;
-
-
+//填入X(2,1)+X(2,2)=1 只會有一個開始時間
 for(int i=0;i<(offset_constraint.size()-1);i++){
   for(int j=offset_constraint[i];j<offset_constraint[i+1];j++){
     ia.push_back(constraint_offset);
@@ -420,7 +401,7 @@ for(int i=0;i<(offset_constraint.size()-1);i++){
   }
   constraint_offset++;
 }
-cout<<"constraint_offset1: "<<constraint_offset<<endl;
+
 //填入 operator node 的順序限制參數 i->j 2Xj2+3Xj3-(1Xi+2Xi2)>=1
 for(int i=0;i<graph_matrix.size();i++){ 
   for(int j=0;j<graph_matrix[i].size();j++){
@@ -447,7 +428,7 @@ for(int i=0;i<graph_matrix.size();i++){
     }
   }
 }
-cout<<"constraint_offset2: "<<constraint_offset<<endl;
+//填入 每個時間的constraint數量
 for(int time=0;time<time_constraint.size();time++){
   for(int type=0;type<time_constraint[time].size();type++){
     bool do_for=false;
@@ -456,30 +437,58 @@ for(int time=0;time<time_constraint.size();time++){
       ia.push_back(constraint_offset);
       ja.push_back(time_constraint[time][type][node]);
       ar.push_back(1.0);
-      // ia[offset_node_temp]=constraint_offset;
-      // ja[offset_node_temp]=time_constraint[time][type][node];
-      // ar[offset_node_temp]=1.0;
       offset_node_temp++;
     }
     if(do_for)
       constraint_offset++;
   }
 }
-cout<<"constraint_offset3: "<<constraint_offset<<endl;
 
-// std::cout << "ia array: \n";
-// for (int i = 1; i < ia.size(); i++) {
-//   std::cout << ia[i] << "\n";
-// }
-// std::cout << std::endl;
 
 glp_load_matrix(lp, (ia.size()-1), ia.data(), ja.data(), ar.data());
 // 求解問題
 glp_simplex(lp, NULL);
 glp_free_env();
 
-std::cout << "Optimal value: " << glp_get_obj_val(lp) << std::endl;
-// glp_delete_prob(lp);
+// std::cout << "Optimal value: " << glp_get_obj_val(lp) << std::endl;
+
+// cout<<"output: ";
+// for(const auto& i:NOP_out){
+//   cout<<i<<" ";
+// }
+// cout<<endl;
+
+for(int check=0;check<opera_output.size();check++){
+  for(int i=offset_constraint[check];i<offset_constraint[check+1];i++){
+    cout<<id2node[check]<<"_"<<i<<": "<<glp_get_col_prim(lp, (i+1)) <<"( "<<opera_time[i]<<" )" <<std::endl;
+  }
+}
+
+//put output into output.ans
+time_constraint.clear();
+time_constraint.shrink_to_fit();
+time_constraint.resize((t+1),vector<vector<int>>(3,vector<int>(0)));
+for(int check=0;check<opera_output.size();check++){
+  for(int i=offset_constraint[check];i<offset_constraint[check+1];i++){
+    if(glp_get_col_prim(lp, (i+1))==1)
+      time_constraint[opera_time[i]][opera_output[id2node[check]].type].push_back(check);
+  }
+}
+ofstream output("output.ans");
+
+for(int time=1;time<time_constraint.size();time++){
+    output<<"time "<<time<<": ";
+    for(int type=0;type<time_constraint[time].size();type++){
+      output<<"{ ";
+      for(int node=0;node<time_constraint[time][type].size();node++){
+        output<<id2node[time_constraint[time][type][node]];
+      }
+      output<<" }";
+    }
+    output<<endl;
+  }
+
+
   return 0;
 }
 
