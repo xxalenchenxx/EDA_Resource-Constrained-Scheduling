@@ -163,18 +163,11 @@ int main(int argc, char **argv) {
   size_t n=opera_output.size(); //matrix size
 
 
-  std::cout << "opera Results:" << endl;
-  for (const auto& pair : opera_output) {
-      std::cout << pair.first << ": " << pair.second.id<<" , "<<pair.second.type<< endl;
-  }
-
-  // std::cout << "Graph matrix:" << endl;
-  // for (const auto& row : graph_matrix) {
-  //       for (bool val : row) {
-  //           cout << val << " ";
-  //       }
-  //       cout << endl;
+  // std::cout << "opera Results:" << endl;
+  // for (const auto& pair : opera_output) {
+  //     std::cout << pair.first << ": " << pair.second.id<<" , "<<pair.second.type<< endl;
   // }
+
 
   //input inital ready node
   vector<int> ref(n,0); //check node is ready or not
@@ -199,17 +192,17 @@ int main(int argc, char **argv) {
 
   std::queue<int> temp = ready[0];
   for(int i=0;i<3;i++){
-    if(i==0)
-      cout<<"AND:"<<endl;
-    else if(i==1)
-      cout<<"OR:"<<endl;
-    else
-      cout<<"NOT:"<<endl;
+    // if(i==0)
+    //   cout<<"AND:"<<endl;
+    // else if(i==1)
+    //   cout<<"OR:"<<endl;
+    // else
+    //   cout<<"NOT:"<<endl;
     while (!temp.empty()) {
-        std::cout << id2node[temp.front()]  << " ";
+        // std::cout << id2node[temp.front()]  << " ";
         temp.pop();
     }
-    cout<<endl;
+    // cout<<endl;
     temp = ready[i];
   }
 
@@ -240,18 +233,25 @@ int main(int argc, char **argv) {
     OUT.push_back(type_node); //output t time nodes 
     t++;
   }
-  cout<<"Heuristic Scheduling Result "<<endl;
-  for(int time=0;time<OUT.size();time++){
-    cout<<"time "<<time<<": ";
-    for(int type=0;type<OUT[time].size();type++){
-      cout<<"{ ";
-      for(int node=0;node<OUT[time][type].size();node++){
-        cout<<OUT[time][type][node];
+
+  if(option=='h'){
+    ofstream output("output_h.ans");
+    output<<"Heuristic Scheduling Result "<<endl;
+    for(int time=0;time<OUT.size();time++){
+      output<<"time "<<(time+1)<<": ";
+      for(int type=0;type<OUT[time].size();type++){
+        output<<"{ ";
+        for(int node=0;node<OUT[time][type].size();node++){
+          output<<OUT[time][type][node];
+        }
+        output<<" }";
       }
-      cout<<" }";
+      output<<endl;
     }
-    cout<<endl;
+    cout<<"end"<<endl;
+    return 0;
   }
+
   //list scheduling end
   // cout<<"spend time: "<<t<<" cycles"<<endl;
   
@@ -290,16 +290,8 @@ int main(int argc, char **argv) {
 
 //幫助ILP的offset constraint
 vector<int> offset_constraint(n+1,0);
-for(auto i=1;i<offset_constraint.size();i++){
+for(auto i=1;i<offset_constraint.size();i++)
   offset_constraint[i]=offset_constraint[i-1]+required_time[i-1]-arrival_time[i-1]+1;
-
-}
-
-// cout<<"offset_constraint: ";
-// for(const auto &i:offset_constraint){
-//   cout<<i<<" ";
-// }
-// cout<<endl;
 
 //ILP format
 // 創建問題
@@ -330,12 +322,6 @@ for(auto i=0;i<id2node.size();i++){
     }
   }
 }
-//print opera
-// cout<<"opera time: ";
-// for(const auto &i:opera_time){
-//   cout<<i<<" ";
-// }
-// cout<<endl;
 
 // 建立constraint C
 // X2,1+X2,2=1 只會有一個開始時間(共有 operate node個)
@@ -394,9 +380,6 @@ for(int i=0;i<(offset_constraint.size()-1);i++){
     ia.push_back(constraint_offset);
     ja.push_back(j+1); //constraint從1開始，所以要+1
     ar.push_back(1.0);
-    // ia[offset_node_temp]=constraint_offset;
-    // ja[offset_node_temp]=(j+1); //constraint從1開始，所以要+1
-    // ar[offset_node_temp]=1.0;
     offset_node_temp++;
   }
   constraint_offset++;
@@ -410,18 +393,12 @@ for(int i=0;i<graph_matrix.size();i++){
         ia.push_back(constraint_offset);
         ja.push_back(k+1);
         ar.push_back(opera_time[k]);
-        // ia[offset_node_temp]=constraint_offset;
-        // ja[offset_node_temp]=(k+1);
-        // ar[offset_node_temp]=(opera_time[k]);
       }
       offset_node_temp++;
       for(int k=offset_constraint[i];k<offset_constraint[i+1];k++){
         ia.push_back(constraint_offset);
         ja.push_back(k+1);
         ar.push_back(-1.0*opera_time[k]);
-        // ia[offset_node_temp]=constraint_offset;
-        // ja[offset_node_temp]=(k+1);
-        // ar[offset_node_temp]=(-1.0*opera_time[k]);
       }
       offset_node_temp++;
       constraint_offset++;
@@ -450,14 +427,6 @@ glp_load_matrix(lp, (ia.size()-1), ia.data(), ja.data(), ar.data());
 glp_simplex(lp, NULL);
 glp_free_env();
 
-// std::cout << "Optimal value: " << glp_get_obj_val(lp) << std::endl;
-
-// cout<<"output: ";
-// for(const auto& i:NOP_out){
-//   cout<<i<<" ";
-// }
-// cout<<endl;
-
 for(int check=0;check<opera_output.size();check++){
   for(int i=offset_constraint[check];i<offset_constraint[check+1];i++){
     cout<<id2node[check]<<"_"<<i<<": "<<glp_get_col_prim(lp, (i+1)) <<"( "<<opera_time[i]<<" )" <<std::endl;
@@ -474,19 +443,19 @@ for(int check=0;check<opera_output.size();check++){
       time_constraint[opera_time[i]][opera_output[id2node[check]].type].push_back(check);
   }
 }
-ofstream output("output.ans");
 
+ofstream output("output_e.ans");
 for(int time=1;time<time_constraint.size();time++){
-    output<<"time "<<time<<": ";
-    for(int type=0;type<time_constraint[time].size();type++){
-      output<<"{ ";
-      for(int node=0;node<time_constraint[time][type].size();node++){
-        output<<id2node[time_constraint[time][type][node]];
-      }
-      output<<" }";
+  output<<"time "<<time<<": ";
+  for(int type=0;type<time_constraint[time].size();type++){
+    output<<"{ ";
+    for(int node=0;node<time_constraint[time][type].size();node++){
+      output<<id2node[time_constraint[time][type][node]];
     }
-    output<<endl;
+    output<<" }";
   }
+  output<<endl;
+}
 
 
   return 0;
