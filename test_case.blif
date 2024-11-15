@@ -1,0 +1,23 @@
+.model sample02 
+.inputs x y z
+.outputs a b c d e f g h
+.names x y a 
+11 1
+.names y z b 
+11 1
+.names y c 
+0 1 
+.names y z d 
+11 1
+.names a b e 
+11 1
+.names c d f 
+1- 1 
+-1 1 
+.names c f h 
+1- 1 
+-1 1
+.names c e g 
+1- 1 
+-1 1
+.end

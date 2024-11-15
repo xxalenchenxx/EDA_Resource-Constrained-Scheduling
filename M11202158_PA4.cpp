@@ -7,7 +7,8 @@
 #include<queue>
 #include<cstring>
 #include<map>
-#include "gurobi1103/linux64/include/gurobi_c++.h" //gurobi_c++.h
+#include <algorithm>
+#include "gurobi_c++.h" //gurobi_c++.h
 using namespace std;
 #define AND 0
 #define OR  1
@@ -114,7 +115,7 @@ void required_time_calculate(vector<vector<bool>> graph_matrix,vector<int> &requ
 }
 
 //compile:  g++ main.cpp -o main -lglpk
-//run code: ./main -h 6io2.blif 2 1 1
+//run code: ./mlrcs -h 6io2.blif 2 1 1
 int main(int argc, char **argv) {
   //input format
   //mlrcs -h/-e BLIF_FILE AND_CONSTRAINT OR_CONSTRAINT NOT_CONSTRAINT 
@@ -185,6 +186,7 @@ int main(int argc, char **argv) {
     }
   }
   for(int i=0;i<n;i++){
+  // for(int i=n-1;i>=0;i--){
     if(ref[i]==0)
       ready[opera_output[id2node[i]].type].push(i);
   }
@@ -208,46 +210,66 @@ int main(int argc, char **argv) {
   //list scheduling start
   vector<vector<vector<string>>> OUT;//[time][type][node]
   int t=0;
+  vector<queue<int>> ready_next=ready; //這個cycle push進去的要下個cycle才能選
   while(!ready[0].empty()||!ready[1].empty()||!ready[2].empty()){
     vector<vector<string>> type_node(3);
     for(int type=0;type<3;type++){ //check each type node
       vector<string> max_node;
-      if(!ready[type].empty()){
+      // if(!ready[type].empty()){
         while(max_node.size()<CONSTRAINT[type]&& !ready[type].empty()){ //limit constraint
           int i=ready[type].front();
           max_node.push_back(id2node[i]);
           ready[type].pop();
+          ready_next[type].pop();
 
           for(int j=0;j<n;j++){
             if(graph_matrix[i][j]==1){
-              if(--ref[j]==0)
-                ready[opera_output[id2node[j]].type].push(j);
+              if((--ref[j])==0)
+                ready_next[opera_output[id2node[j]].type].push(j);
             }
           }
 
         } 
-      }
+      // }
       type_node[type]=max_node;//push each type node
     }
+    ready=ready_next;
     OUT.push_back(type_node); //output t time nodes 
     t++;
   }
 
+
+  cout << "Heuristic Scheduling Result " << endl;
+  for (int time = 0; time < OUT.size(); time++) {
+      cout << "time " << (time + 1) << ": ";
+      for (int type = 0; type < OUT[time].size(); type++) {
+          cout << "{ ";
+          for (int node = 0; node < OUT[time][type].size(); node++) {
+              cout << OUT[time][type][node]<<" ";
+          }
+          cout << " }";
+      }
+      cout << endl;
+  }
+  cout << "end" << endl;
+
   if(option=='h'){
     ofstream output("output_h.ans");
-    output<<"Heuristic Scheduling Result "<<endl;
+    output<<"Heuristic Scheduling Result"<<endl;
     for(int time=0;time<OUT.size();time++){
-      output<<"time "<<(time+1)<<": ";
+      output<<(time+1)<<": ";
       for(int type=0;type<OUT[time].size();type++){
         output<<"{ ";
         for(int node=0;node<OUT[time][type].size();node++){
-          output<<OUT[time][type][node];
+          output<<OUT[time][type][node]<<" ";
         }
         output<<" }";
       }
       output<<endl;
     }
-    cout<<"end"<<endl;
+    output<<"LATENCY: "<< t <<endl;
+    output<<"END"<<endl;
+    //  cout<<"spend time: "<<t<<" cycles"<<endl;
     return 0;
   }
 
@@ -262,7 +284,6 @@ int main(int argc, char **argv) {
   //require time
   vector<int> required_time(n,-1);
   required_time_calculate(graph_matrix,required_time,NOP_out,t);
-
 
 
 
@@ -288,63 +309,161 @@ int main(int argc, char **argv) {
 // cout<<endl;
 
 //幫助ILP的offset constraint
+
 vector<int> offset_constraint(n+1,0);
 for(auto i=1;i<offset_constraint.size();i++)
   offset_constraint[i]=offset_constraint[i-1]+required_time[i-1]-arrival_time[i-1]+1;
 
+int variable_size=offset_constraint[n];
 //ILP format
-// 創建問題
+// 創建問
+// cout<<"offset_constraint: ";
+//   for(const auto& i:offset_constraint){
+//     cout<<i<<" ";
+//   }
+//   cout<<endl;
+//   cout<<"NOP_out: ";
+//   for(const auto &i:NOP_out){
+//       cout<<i<<" ";
+//   }
+//   cout<<endl;
 try {
-        // 建立模型環境
-        GRBEnv env = GRBEnv(true);
-        env.start();
-
-        // 創建模型
-        GRBModel model = GRBModel(env);
-
-        // 定義變數
-        GRBVar x = model.addVar(0.0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "x");
-        GRBVar y = model.addVar(0.0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "y");
-
-        // 設定目標函數
-        model.setObjective(3 * x + 4 * y, GRB_MAXIMIZE);
-
-        // 新增限制條件
-        model.addConstr(x + 2 * y <= 14, "c1");
-        model.addConstr(3 * x - y >= 0, "c2");
-        model.addConstr(x - y <= 2, "c3");
-
-        // 優化模型
-        model.optimize();
-
-        // 顯示解決方案
-        if (model.get(GRB_IntAttr_Status) == GRB_OPTIMAL) {
-            std::cout << "Optimal solution found:" << std::endl;
-            std::cout << "x = " << x.get(GRB_DoubleAttr_X) << std::endl;
-            std::cout << "y = " << y.get(GRB_DoubleAttr_X) << std::endl;
-        } else {
-            std::cout << "No optimal solution found." << std::endl;
-        }
-    } catch (GRBException e) {
-        std::cerr << "Error code = " << e.getErrorCode() << std::endl;
-        std::cerr << e.getMessage() << std::endl;
-    } catch (...) {
-        std::cerr << "Exception during optimization" << std::endl;
+    GRBEnv env = GRBEnv();
+    GRBModel model = GRBModel(env);
+    // 獲取電腦的最多線程數量
+    
+    
+    // Create variables
+    vector<GRBVar> variable(variable_size);
+    // cout<<"variable_size: "<<variable_size<<endl;
+    for(int i=0;i<variable.size();i++){
+      variable[i] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, "x_" + to_string(i));
     }
 
+    // Set 最小化目標---整體要安排的cycle
+    GRBLinExpr obj = 0.0;  // 初始化線性表達式
+    vector<GRBLinExpr> time_start(n); //用來嚇constraint(ndoe 順序)用的
+    for(auto i=0;i<id2node.size();i++){
+      int coe=0;
+      GRBLinExpr temp;
+      for(auto range=offset_constraint[i] ;range<offset_constraint[i+1];range++,coe++){
+        obj += (arrival_time[i]+coe)*variable[range];
+        temp+= (arrival_time[i]+coe)*variable[range]; 
+      }
+      time_start[i] = temp;
+    }
+    model.setObjective(obj, GRB_MINIMIZE);
 
-ofstream output("output_e.ans");
-// for(int time=1;time<time_constraint.size();time++){
-//   output<<"time "<<time<<": ";
-//   for(int type=0;type<time_constraint[time].size();type++){
-//     output<<"{ ";
-//     for(int node=0;node<time_constraint[time][type].size();node++){
-//       output<<id2node[time_constraint[time][type][node]];
-//     }
-//     output<<" }";
-//   }
-//   output<<endl;
-// }
+    //下constraint
+
+    //每個node的開始時間只會有1個 X1+X2=1
+    for(auto i=0;i<id2node.size();i++){
+      GRBLinExpr constraint_expr = 0.0;
+      for(auto range=offset_constraint[i] ;range<offset_constraint[i+1];range++){
+        constraint_expr += variable[range]; 
+      }
+      model.addConstr(constraint_expr == 1.0, "c"+i);
+    }
+
+    //每個node的開工順序的限制 Vi -> Vj    Vi + 1 <= Vj 可變成  Vi - Vj <= -1
+    for(int i=0;i<graph_matrix.size();i++){ 
+      for(int j=0;j<graph_matrix[i].size();j++){
+        if(graph_matrix[i][j]){
+          model.addConstr(time_start[i] - time_start[j] <= -1.0, "precedence_constraint_" + std::to_string(i) + "_" + std::to_string(j));
+        }
+      }
+    }
+
+    //限制每個時間點的resource上限 type time node
+    for(int type = 0; type < 3; type++) { // Operator types: AND, OR, NOT
+        for(int cycle = 1; cycle <= t; cycle++) {
+            GRBLinExpr resource_constraint = 0.0;
+            for(int i = 0; i < id2node.size(); i++) { 
+                if(opera_output[id2node[i]].type == type) {
+                    int coe = 0;
+                    for(int range = offset_constraint[i]; range < offset_constraint[i + 1]; range++, coe++) {
+                        int node_start_time = arrival_time[i] + coe;
+                        if(node_start_time == cycle) {
+                            resource_constraint += variable[range];
+                        }
+                    }
+                }
+            }
+            // Add resource constraint with a unique name
+            model.addConstr(resource_constraint <= CONSTRAINT[type], "resource_constraint_" + std::to_string(type) + "_" + std::to_string(cycle));
+        }
+    }
+
+    // Optimize model
+    model.optimize();
+
+    // Extract the assigned start times
+    vector<int> node_start_times(id2node.size(), -1); // To store the start time for each node
+
+    for (int i = 0; i < id2node.size(); i++) {
+        bool assigned = false;
+        int coe = 0; // Coefficient to calculate start time
+        for (int range = offset_constraint[i]; range < offset_constraint[i + 1]; range++, coe++) {
+            if (variable[range].get(GRB_DoubleAttr_X) == 1.0) {
+                int assigned_time = arrival_time[i] + coe;
+                node_start_times[i] = assigned_time;
+                assigned = true;
+                break;
+            }
+        }
+        if (!assigned) {
+            cout << "Node " << id2node[i] << " was not assigned a start time." << endl;
+        }
+    }
+
+    // cout<<"node_start_times: ";
+    // for(const auto& i:node_start_times){
+    //   cout<<i<<" ";
+    // }
+    // cout<<endl;
+
+    // Determine the total number of time steps
+    int total_time = *max_element(node_start_times.begin(), node_start_times.end());
+
+    // cout<<"total_time: "<<total_time<<endl;
+
+    // Initialize the schedule
+    vector<vector<vector<string>>> ILP_result(total_time, vector<vector<string>>(3));
+    // Populate the schedule
+    for (int i = 0; i < id2node.size(); i++) {
+        int start_time = node_start_times[i];
+        int type = opera_output[id2node[i]].type; // Operator type: 0=AND, 1=OR, 2=NOT
+        if (start_time > 0) {
+            // Adjust index since time steps start from 1
+            ILP_result[start_time - 1][type].push_back(id2node[i]);
+        }
+    }
+
+    // Output the schedule
+    ofstream output("output_e.ans");
+    output << "ILP-based Scheduling Result" << endl;
+
+    for (int time = 0; time < ILP_result.size(); time++) {
+        output << (time + 1) << ": ";
+        for (int type = 0; type < ILP_result[time].size(); type++) {
+            output << "{ ";
+            for (const auto& node : ILP_result[time][type]) {
+                output << node << " ";
+            }
+            output << "} ";
+        }
+        output << endl;
+    }
+    output << "LATENCY: "<< total_time << endl;
+    output << "END" << endl;
+
+
+  } catch(GRBException e) {
+    cout << "Error code = " << e.getErrorCode() << endl;
+    cout << e.getMessage() << endl;
+  } catch(...) {
+    cout << "Exception during optimization" << endl;
+  }
 
 
   return 0;

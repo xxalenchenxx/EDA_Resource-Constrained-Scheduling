@@ -1,5 +1,9 @@
-Heuristic Scheduling Result 
-time 1: { h }{ g }{ i }
-time 2: {  }{ j }{ p }
-time 3: { lm }{ k }{  }
-time 4: { no }{  }{ q }
+Heuristic Scheduling Result
+1: { d h  }{  }{ i  }
+2: { e f  }{ g  }{  }
+3: {   }{ j  }{ p  }
+4: { l m  }{ k  }{  }
+5: { n o  }{  }{  }
+6: {  }{  }{ q  }
+LATENCY: 6
+END
