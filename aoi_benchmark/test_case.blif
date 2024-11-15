@@ -1,6 +1,6 @@
 .model sample02 
 .inputs x y z
-.outputs a b c d e f g h
+.outputs g h
 .names x y a 
 11 1
 .names y z b 

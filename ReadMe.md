@@ -17,16 +17,19 @@ The following is an example:
 We set resources <AND,OR,NOT> = <2, 1, 1> because the number of AND operations is the most in this example, so we set it to 2.
 There are three critical paths in my example, e.g., {d-f-g}, {{a,b},e,g} need three cycles accomplish.
 ![alt text](image-1.png)
+test_case.blif file path: <./aoi_benchmark/test/case.blif>
+
 .inputs x y z
 .outputs a b c d e f g h
 
-Heuristic Scheduling Result 
-time 1: { ab }{  }{ c }
-time 2: { de }{  }{  }
-time 3: {  }{ f }{  }
-time 4: {  }{ g }{  }
-time 5: {  }{ h }{  }
-end
+Heuristic Scheduling Result
+1: {a b} {} {c} 
+2: {d e} {} {} 
+3: {} {f} {} 
+4: {} {g} {} 
+5: {} {h} {} 
+LATENCY: 5
+END
 
 
 In Heuristic Scheduling of 3-5 cycles, there are only schedule OR operation,
@@ -35,14 +38,21 @@ We can observe that it doesn't schedule AND operation {d} to result in more late
 Therefore, this is one of drawback of list scheduling.  
 
 ILP-based Scheduling Result
-1: { a d } { } { c } 
-2: { b } { f } { } 
-3: { e } { h } { } 
-4: { } { g } { } 
+1: {b d} {} {c} 
+2: {a} {f} {} 
+3: {e} {h} {} 
+4: {} {g} {} 
 LATENCY: 4
 END
 
-In the ILP-based Scheduling, we can observe we pick AND operation {d}, then it improve other operations schedule.
-As you can see,  result of ILP-based Scheduling can distribute resource as many as possible in each cycle.
+In the ILP-based Scheduling, we can observe ILP picks AND operation {d}, then it improve other operations schedule.
+As you can see, result of ILP-based Scheduling can distribute resource as many as possible in each cycle.
+Even if path{d-f-g} is not a critical path, if there are many OR or NOT operations after {d}, this issue still exist.
+
+<Conclusion>
+No matter path is critical path or not, if we have different type of node in circuit, they will effected by each other.The best solution is hard to find by ILP, because I tried dataset aoi_big1.blif,but it spends too much time by ILP compared to Heuristic Scheduling.
+If our problem is not too complicated, we can consider ILP solution.
+If our problem is too complicated and getting nit bad solution in limited time, we can consider Heuristic solution.
+
 
 Student ID: M11202158

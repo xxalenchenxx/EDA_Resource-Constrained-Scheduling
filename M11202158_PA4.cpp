@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
   if(!read_file(blifFile,graph_matrix,opera_output,NOP_out))
     return 0;
   size_t n=opera_output.size(); //matrix size
-
+  // cout<<"n: "<<n<<endl;
 
   // std::cout << "opera Results:" << endl;
   // for (const auto& pair : opera_output) {
@@ -239,36 +239,49 @@ int main(int argc, char **argv) {
   }
 
 
-  cout << "Heuristic Scheduling Result " << endl;
-  for (int time = 0; time < OUT.size(); time++) {
-      cout << "time " << (time + 1) << ": ";
-      for (int type = 0; type < OUT[time].size(); type++) {
-          cout << "{ ";
-          for (int node = 0; node < OUT[time][type].size(); node++) {
-              cout << OUT[time][type][node]<<" ";
-          }
-          cout << " }";
-      }
-      cout << endl;
-  }
-  cout << "end" << endl;
+    cout << "Heuristic Scheduling Result " << endl;
+    for (int time = 0; time < OUT.size(); time++) {
+        cout << (time + 1) << ": ";
+        for (int type = 0; type < OUT[time].size(); type++) {
+            cout << "{";
+            int size = OUT[time][type].size(); // 紀錄當前類型的節點數量
+            for (int node = 0; node < size; node++) {
+                if (node == size - 1) { // 當前是最後一個元素
+                    cout << OUT[time][type][node];
+                } else {
+                    cout << OUT[time][type][node] << " ";
+                }
+            }
+            cout << "} ";
+        }
+        cout << endl;
+    }
+    cout << "LATENCY: " << t << endl;
+    cout << "END" << endl;
+
+  
+    // ofstream output("output_h.ans");
+    // output << "Heuristic Scheduling Result" << endl;
+    // for (int time = 0; time < OUT.size(); time++) {
+    //     output << (time + 1) << ": ";
+    //     for (int type = 0; type < OUT[time].size(); type++) {
+    //         output << "{";
+    //         int size = OUT[time][type].size(); // 紀錄當前類型的節點數量
+    //         for (int node = 0; node < size; node++) {
+    //             if (node == size - 1) { // 當前是最後一個元素
+    //                 output << OUT[time][type][node];
+    //             } else {
+    //                 output << OUT[time][type][node] << " ";
+    //             }
+    //         }
+    //         output << "} ";
+    //     }
+    //     output << endl;
+    // }
+    // output << "LATENCY: " << t << endl;
+    // output << "END" << endl;
 
   if(option=='h'){
-    ofstream output("output_h.ans");
-    output<<"Heuristic Scheduling Result"<<endl;
-    for(int time=0;time<OUT.size();time++){
-      output<<(time+1)<<": ";
-      for(int type=0;type<OUT[time].size();type++){
-        output<<"{ ";
-        for(int node=0;node<OUT[time][type].size();node++){
-          output<<OUT[time][type][node]<<" ";
-        }
-        output<<" }";
-      }
-      output<<endl;
-    }
-    output<<"LATENCY: "<< t <<endl;
-    output<<"END"<<endl;
     //  cout<<"spend time: "<<t<<" cycles"<<endl;
     return 0;
   }
@@ -440,22 +453,49 @@ try {
     }
 
     // Output the schedule
-    ofstream output("output_e.ans");
-    output << "ILP-based Scheduling Result" << endl;
+    // ofstream output("output_e.ans");
+    // output << "ILP-based Scheduling Result" << endl;
+    // for (int time = 0; time < ILP_result.size(); time++) {
+    //     output << (time + 1) << ": ";
+    //     for (int type = 0; type < ILP_result[time].size(); type++) {
+    //         output << "{";
+    //         int size = ILP_result[time][type].size(); // 紀錄該類型的節點數量
+    //         for (int idx = 0; idx < size; idx++) { // 使用索引來遍歷
+    //             if (idx == size - 1) { // 判斷是否為最後一個元素
+    //                 output << ILP_result[time][type][idx];
+    //             } else {
+    //                 output << ILP_result[time][type][idx] << " ";
+    //             }
+    //         }
+    //         output << "} ";
+    //     }
+    //     output << endl;
+    // }
+    // output << "LATENCY: " << total_time << endl;
+    // output << "END" << endl;
 
+
+    cout << "ILP-based Scheduling Result" << endl;
     for (int time = 0; time < ILP_result.size(); time++) {
-        output << (time + 1) << ": ";
+        cout << (time + 1) << ": ";
         for (int type = 0; type < ILP_result[time].size(); type++) {
-            output << "{ ";
+            cout << "{";
+            int size = ILP_result[time][type].size(); // 紀錄該類型的節點數量
+            int idx = 0; // 用來追蹤當前元素索引
             for (const auto& node : ILP_result[time][type]) {
-                output << node << " ";
+                if (idx == size - 1) { // 當前元素是最後一個
+                    cout << node;
+                } else {
+                    cout << node << " ";
+                }
+                idx++;
             }
-            output << "} ";
+            cout << "} ";
         }
-        output << endl;
+        cout << endl;
     }
-    output << "LATENCY: "<< total_time << endl;
-    output << "END" << endl;
+    cout << "LATENCY: " << total_time << endl;
+    cout << "END" << endl;
 
 
   } catch(GRBException e) {
@@ -471,109 +511,117 @@ try {
 
 
 
+bool read_file(string blifFile, vector<vector<bool>> &graph_matrix, map<string, opera> &opera_output, vector<int> &NOP_out) {
+    ifstream inputFile(blifFile);
+    if (!inputFile.is_open()) {
+        std::cout << "Failed to open BLIF file." << endl;
+        return false;
+    }
 
-bool read_file(string blifFile,vector<vector<bool>> &graph_matrix,map<string,opera> &opera_output,vector<int> &NOP_out) {
-  ifstream inputFile(blifFile);
-  if (!inputFile.is_open()) {
-    std::cout << "Failed to open BLIF file." << endl;
-    return false;
-  }
+    string line;
+    vector<string> tokens;
+    vector<string> NOP_out_temp;
+    map<string, int> input; // store input node
+    int intput_id = 0, opera_id = 0;
+    string last_one; // 紀錄該 operator 是 AND、OR、NOT
+    string continuation_line; // 用於處理跨行的內容
+    int total_opera_output=0;
+    while (getline(inputFile, line)) {
+        // 處理跨行的輸入
+        if (!continuation_line.empty()) {
+            line = continuation_line + " " + line;
+            continuation_line.clear();
+        }
+        if (line.back() == '\\') {
+            continuation_line = line.substr(0, line.size() - 1);
+            continue;
+        }
 
-  string line;
-  vector<string> tokens;
-  vector<string> NOP_out_temp;
-  map<string,int> input; //store input node
-  //map<string,opera> opera_output; //store output & operator node
-  int intput_id=0,opera_id=0;
-  string last_one;//紀錄該operator是AND?OR?NOT?
+        string token;
+        istringstream iss(line);
 
+        // 判斷是否為 .inputs 開頭
+        if (line.find(".inputs") == 0) {
+            while (iss >> token) {
+                if (token != ".inputs" && input.find(token) == input.end()) {
+                    input[token] = intput_id++;
+                }
+            }
+        } else if (line.find(".model") == 0 || line.find("#") == 0) { // 跳過
+            while (iss >> token);
+        } else if (line.find(".names") == 0) {
 
-  while (getline(inputFile, line)) {
-    
-    string token;
-    istringstream iss(line);
-    // 判斷是否為 .inputs 開頭
-    if(line.find(".inputs") == 0){
-      while (iss >> token) {
-            if (token != ".inputs" && input.find(token)==input.end()) {
-                input[token]=intput_id++;
+            // 跳過 .names 自身，並儲存後面的字母
+            while (iss >> token) {
+                last_one = token;
+                if (token != ".names" && opera_output.find(token) == opera_output.end() && input.find(token) == input.end()) {
+                    opera_output[token].id = opera_id++;
+                    // cout<<token<<endl;
+                    total_opera_output++;
+                }
+            }
+            
+        } else if (line.find(".outputs") == 0) {
+            // 跳過 .outputs 自身，並儲存後面的字母
+            while (iss >> token) {
+                if (token != ".outputs") {
+                    NOP_out_temp.push_back(token);
+                }
+            }
+        } else { // 判別型態 AND、OR、NOT
+            while (iss >> token) {
+                if (opera_output.find(last_one) != opera_output.end()) { // 找到 operator
+                    if (token.size() == 1) {                    // NOT
+                        opera_output[last_one].type = 2;
+                    } else if (token.size() > 1 && token[1] == '-') { // OR
+                        opera_output[last_one].type = 1;
+                    } else {                                  // AND
+                        opera_output[last_one].type = 0;
+                    }
+                    last_one.clear();
+                }
             }
         }
     }
-    else if(line.find(".model") == 0){ //跳過
-      while (iss >> token);
+
+    // 輸入 NOP_out_temp 到 NOP_out
+    for (const auto &i : NOP_out_temp) {
+        NOP_out.push_back(opera_output[i].id);
     }
-    else if (line.find(".names") == 0 ) {
-        // 跳過 .names 自身，並儲存後面的字母
-        while (iss >> token) {
-            last_one=token;
-            if (token != ".names" &&  opera_output.find(token)==opera_output.end() && input.find(token) == input.end()){
-                  opera_output[token].id=opera_id++;
+
+    // cout<<"total_opera_output: "<<total_opera_output<<endl;
+    // Read again to form graph matrix
+    size_t n = opera_output.size();
+    graph_matrix.resize(n, vector<bool>(n, 0));
+
+    inputFile.clear();
+    inputFile.seekg(0, ios::beg);
+
+    while (getline(inputFile, line)) {
+        stack<string> s;
+        string token;
+        istringstream iss(line);
+
+        if (line.find(".names") == 0) {
+            // 跳過 .names 自身，並儲存後面的字母
+            while (iss >> token) {
+                if (token != ".names")
+                    s.push(token);
+            }
+            string j = s.top();
+            s.pop();
+            while (!s.empty()) {
+                if (input.find(s.top()) == input.end()) // not input node
+                    graph_matrix[opera_output[s.top()].id][opera_output[j].id] = 1;
+                s.pop();
             }
         }
     }
-    else if (line.find(".outputs") == 0 ) {
-        // 跳過 .outputs 自身，並儲存後面的字母
-        while (iss >> token) {
-            if (token != ".outputs" ){
-                  NOP_out_temp.push_back(token);
-            }
-        }
-    }
-    else {//判別型態AND?OR?NOT?
-        while (iss >> token) {
-          if(opera_output.find(last_one)!=opera_output.end()){//need to found operator
-            if(token.size()==1){                    //NOT
-              // cout<<last_one<<": NOT"<<endl;
-              opera_output[last_one].type=2;
-            }else if(token.size()>1&&token[1]=='-'){//OR
-              // cout<<last_one<<": OR"<<endl;
-              opera_output[last_one].type=1;
-            }else{                                  //AND
-              // cout<<last_one<<": AND"<<endl;
-              opera_output[last_one].type=0;
-            }    
-            last_one="";
-          }   
-        }
-    }
-  }
-  //輸入NOP_out_temp到NOP_out
-  for(const auto &i:NOP_out_temp){
-    NOP_out.push_back(opera_output[i].id);
-  }
 
-  //read again to form graph matrix
-  size_t n=opera_output.size();
-  graph_matrix.resize(n,vector<bool>(n,0));
-   
-  inputFile.clear();
-  inputFile.seekg(0, ios::beg);
-  while (getline(inputFile, line)) {
-    stack<string> s;
-    string token;
-    istringstream iss(line);
+    inputFile.close();
 
-    if (line.find(".names") == 0 ) {
-      // 跳過 .names 自身，並儲存後面的字母
-      while (iss >> token) {
-          if (token != ".names")
-            s.push(token);
-          
-      }
-      string j=s.top();
-      s.pop();
-      while(!s.empty()){
-        if(input.find(s.top())==input.end()) //not input node
-          graph_matrix[opera_output[s.top()].id][opera_output[j].id]=1;  
-        s.pop();
-      }
-    }
-
-  }
-  
-  inputFile.close();
-
-  return true;
+    return true;
 }
+
+
 
