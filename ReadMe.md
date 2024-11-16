@@ -20,7 +20,7 @@ There are three critical paths in my example, e.g., {d-f-g}, {{a,b},e,g} need th
 test_case.blif file path: <./aoi_benchmark/test/case.blif>
 
 .inputs x y z
-.outputs a b c d e f g h
+.outputs g h
 
 Heuristic Scheduling Result
 1: {a b} {} {c} 
@@ -35,7 +35,7 @@ END
 In Heuristic Scheduling of 3-5 cycles, there are only schedule OR operation,
 but we can realize that <time 2: { de }{  }{  }> dosen't schedule any OR operation in this cycle. It wastes resource in this cycle.
 We can observe that it doesn't schedule AND operation {d} to result in more latency.
-Therefore, this is one of drawback of list scheduling.  
+Therefore, this is one of drawback of list scheduling- didn't consider other operation!!   
 
 ILP-based Scheduling Result
 1: {b d} {} {c} 
@@ -52,7 +52,7 @@ Even if path{d-f-g} is not a critical path, if there are many OR or NOT operatio
 <Conclusion>
 No matter path is critical path or not, if we have different type of node in circuit, they will effected by each other.The best solution is hard to find by ILP, because I tried dataset aoi_big1.blif,but it spends too much time by ILP compared to Heuristic Scheduling.
 If our problem is not too complicated, we can consider ILP solution.
-If our problem is too complicated and getting nit bad solution in limited time, we can consider Heuristic solution.
+If our problem is too complicated and getting not bad solution in limited time, we can consider Heuristic solution.
 
 
 Student ID: M11202158
