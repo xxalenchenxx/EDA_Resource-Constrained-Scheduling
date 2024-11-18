@@ -123,12 +123,12 @@ int main(int argc, char **argv) {
   int CONSTRAINT[3]={0,0,0};
   for(int i=0;i<3;i++){
     CONSTRAINT[i]=stoi(argv[3+i]);
-    if(i==0)
-      cout<<"AND constraint: "<<CONSTRAINT[i]<<endl;
-    else if(i==1)
-      cout<<"OR constraint: "<<CONSTRAINT[i]<<endl;
-    else
-      cout<<"NOT constraint: "<<CONSTRAINT[i]<<endl;
+    // if(i==0)
+    //   cout<<"AND constraint: "<<CONSTRAINT[i]<<endl;
+    // else if(i==1)
+    //   cout<<"OR constraint: "<<CONSTRAINT[i]<<endl;
+    // else
+    //   cout<<"NOT constraint: "<<CONSTRAINT[i]<<endl;
   }
     
   
@@ -151,7 +151,7 @@ int main(int argc, char **argv) {
 
     }
   }
-  std::cout<<"option:"<<option<<endl;
+  // std::cout<<"option:"<<option<<endl;
   //read optin end
   //read file
 
@@ -238,7 +238,7 @@ int main(int argc, char **argv) {
     t++;
   }
 
-
+  if(option=='h'){
     cout << "Heuristic Scheduling Result " << endl;
     for (int time = 0; time < OUT.size(); time++) {
         cout << (time + 1) << ": ";
@@ -281,7 +281,7 @@ int main(int argc, char **argv) {
     // output << "LATENCY: " << t << endl;
     // output << "END" << endl;
 
-  if(option=='h'){
+  
     //  cout<<"spend time: "<<t<<" cycles"<<endl;
     return 0;
   }
@@ -339,9 +339,11 @@ int variable_size=offset_constraint[n];
 //   for(const auto &i:NOP_out){
 //       cout<<i<<" ";
 //   }
-//   cout<<endl;
 try {
     GRBEnv env = GRBEnv();
+    env.set(GRB_IntParam_OutputFlag, 0);  // 禁用輸出
+    // env.set(GRB_IntParam_OutputFlag, 0);  // 禁用輸出
+    env.set(GRB_StringParam_LogFile, ""); // 禁用日誌文件
     GRBModel model = GRBModel(env);
     // 獲取電腦的最多線程數量
     
